@@ -1,0 +1,47 @@
+###
+GET http://localhost:5003
+
+
+###
+POST http://localhost:5003/auth/register
+Content-Type: application/json
+
+{
+    "username": "jarvis@gmail.com",
+    "password": "123456"
+}
+
+### 
+POST http://localhost:5003/auth/login
+Content-Type: application/json
+
+{
+    "username": "jarvis@gmail.com",
+    "password": "123456"
+}
+
+###
+GET http://localhost:5003/todos
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNzU0NjIyMzMwLCJleHAiOjE3NTQ3MDg3MzB9.NM9FIvIESow-uhEZg7pqZxWVB7JtvVU0Mhw8yNdkIiM
+
+###
+POST http://localhost:5003/todos
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNzU0NjIyMzMwLCJleHAiOjE3NTQ3MDg3MzB9.NM9FIvIESow-uhEZg7pqZxWVB7JtvVU0Mhw8yNdkIiM
+Content-Type: application/json
+
+{
+    "task": "Finish coding projects"
+}
+
+###
+PUT http://localhost:5003/todos/2
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNzU0NjIyMzMwLCJleHAiOjE3NTQ3MDg3MzB9.NM9FIvIESow-uhEZg7pqZxWVB7JtvVU0Mhw8yNdkIiM
+Content-Type: application/json
+
+{
+    "completed": "1"
+}
+
+###
+DELETE http://localhost:5003/todos/2 
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNzU0NjIyMzMwLCJleHAiOjE3NTQ3MDg3MzB9.NM9FIvIESow-uhEZg7pqZxWVB7JtvVU0Mhw8yNdkIiM
