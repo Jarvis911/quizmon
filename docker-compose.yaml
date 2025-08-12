@@ -1,0 +1,34 @@
+version: '3'
+services:
+  app:
+    # build a dockerfile (instruction sheet to build that container)
+    build: .
+    container_name: quizmon-app
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/quizmon-db
+      - JWT_SECRET=fc033596847e21fb145210ee84cf98c2
+      - NODE_ENV=development
+      - PORT=5000
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    # just like a log
+    volumes:
+      - .:/app
+  
+  db:
+    image: postgres:13-alpine
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: quizmon-db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+# Initialize the folder where docker will contain postgres data
+volumes:
+  postgres-data:

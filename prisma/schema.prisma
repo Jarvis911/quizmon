@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -15,16 +14,110 @@ datasource db {
 }
 
 model User {
-  id        Int     @id @default(autoincrement())
-  username  String  @unique
-  password  String
-  todos     Todo[]
+  id            Int     @id @default(autoincrement())
+  username      String  @unique
+  password      String
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  quizzes       Quiz[]
 }
 
-model Todo {
-  id        Int     @id @default(autoincrement())
-  task      String
-  completed Boolean @default(false)
-  userId    Int
-  user      User    @relation(fields: [userId], references: [id])
+model Quiz {
+  id            Int     @id @default(autoincrement())
+  title         String
+  description   String
+
+  creatorId     Int
+  creator       User    @relation(fields: [creatorId], references: [id])
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  questions     Question[]
+}
+
+
+enum QuestionType {
+  BUTTONS
+  CHECKBOXES
+  RANGE
+  REORDER
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+model Question {
+  id            Int     @id @default(autoincrement())
+  text          String
+
+  button        QuestionButton?
+  checkbox      QuestionCheckbox?
+  reorder       QuestionReorder?
+  range         QuestionRange?
+
+  quizId        Int
+  quiz          Quiz    @relation(fields: [quizId], references: [id])
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  options       QuestionOption[]
+  media         QuestionMedia[]
+}
+
+model QuestionButton {
+  id            Int         @id 
+  question      Question    @relation(fields: [id], references: [id])
+}
+
+model QuestionCheckbox {
+  id            Int         @id
+  question      Question    @relation(fields: [id], references: [id])
+}
+
+model QuestionOption {
+  id            Int         @id @default(autoincrement())
+  text          String
+  isCorrect     Boolean?    @default(false)    // Button, Checkbox
+  order         Int?                           // Reorder
+
+  questionId    Int
+  question      Question    @relation(fields: [questionId], references: [id])
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([questionId])
+}
+
+model QuestionReorder {
+  id            Int         @id
+  question      Question    @relation(fields: [id], references: [id])
+}
+
+model QuestionRange   {
+  id            Int         @id
+  minValue      Int
+  maxValue      Int
+  correctValue  Int       
+  question      Question    @relation(fields: [id], references: [id])
+}
+
+model QuestionMedia {
+  id            Int         @id() @default(autoincrement())
+  type          MediaType
+  url           String
+  startTime     Int?
+  duration      Int?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  questionId    Int
+  question      Question    @relation(fields: [id], references: [id])
 }

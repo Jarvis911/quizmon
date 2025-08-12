@@ -2,12 +2,12 @@ import express from 'express';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import authRoutes from './routes/authRoutes.js';
-import todoRoutes from './routes/todoRoutes.js';
+import quizRoutes from './routes/quizRoutes.js';
 import authMiddleware from './middleware/authMiddleware.js';
 
 
 const app = express()
-const PORT = process.env.PORT || 5003
+const PORT = process.env.PORT || 5000
 
 // Go to src
 const __filename = fileURLToPath(import.meta.url)
@@ -27,7 +27,7 @@ app.get('/', (req, res) => {
 })
 
 app.use('/auth', authRoutes)
-app.use('/todos', authMiddleware, todoRoutes)
+app.use('/quiz', authMiddleware, quizRoutes)
 
 app.listen(PORT, () => {
     console.log(`Server has started on port: ${PORT}`)
