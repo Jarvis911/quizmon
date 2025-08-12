@@ -28,6 +28,7 @@ model Quiz {
   id            Int     @id @default(autoincrement())
   title         String
   description   String
+  isPublic      Boolean @default(false)
 
   creatorId     Int
   creator       User    @relation(fields: [creatorId], references: [id])
@@ -36,19 +37,33 @@ model Quiz {
   updatedAt     DateTime  @updatedAt
 
   questions     Question[]
+  media         QuizMedia[]
 }
 
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+model QuizMedia {
+  id            Int         @id() @default(autoincrement())
+  type          MediaType
+  url           String
+  startTime     Int?
+  duration      Int?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  quizId    Int
+  quiz      Quiz    @relation(fields: [quizId], references: [id])
+}
 
 enum QuestionType {
   BUTTONS
   CHECKBOXES
   RANGE
   REORDER
-}
-
-enum MediaType {
-  IMAGE
-  VIDEO
 }
 
 model Question {
@@ -67,7 +82,6 @@ model Question {
   updatedAt     DateTime  @updatedAt
 
   options       QuestionOption[]
-  media         QuestionMedia[]
 }
 
 model QuestionButton {
@@ -108,16 +122,3 @@ model QuestionRange   {
   question      Question    @relation(fields: [id], references: [id])
 }
 
-model QuestionMedia {
-  id            Int         @id() @default(autoincrement())
-  type          MediaType
-  url           String
-  startTime     Int?
-  duration      Int?
-
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  questionId    Int
-  question      Question    @relation(fields: [id], references: [id])
-}

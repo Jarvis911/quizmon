@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 import authRoutes from './routes/authRoutes.js';
 import quizRoutes from './routes/quizRoutes.js';
 import authMiddleware from './middleware/authMiddleware.js';
-
+import upload from './middleware/uploadMiddleware.js';
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -27,7 +27,7 @@ app.get('/', (req, res) => {
 })
 
 app.use('/auth', authRoutes)
-app.use('/quiz', authMiddleware, quizRoutes)
+app.use('/quiz', authMiddleware, upload.single("file"), quizRoutes)
 
 app.listen(PORT, () => {
     console.log(`Server has started on port: ${PORT}`)
