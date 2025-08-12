@@ -37,7 +37,30 @@ router.get("/", async (req, res) => {
     }
 });
 
-router.get("/:id", async (req, res) => {
+router.put("/:id", async (req, res) => {
+  const { title, description } = req.body
+  const { id } = req.params
+
+  try {
+    const quiz = await prisma.quiz.update({
+      where: {
+        id: Number(id),
+        creatorId: req.userId
+      },
+      data: {
+        title: title,
+        description: description
+      }
+    })
+
+    res.json(quiz)
+  } catch (err) {
+    console.log(err.message)
+    res.sendStatus(503)
+  }
+})
+
+router.delete("/:id", async (req, res) => {
     const { id } = req.params
 
     try {

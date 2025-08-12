@@ -1,7 +1,7 @@
 {
-  "name": "chapter_4",
+  "name": "quizmon",
   "version": "1.0.0",
-  "description": "A dockerized full stack todo application that use NodeJS backend, a PostgreSQL database, Prisma ORM, and JWT authentication",
+  "description": "A dockerized full stack quiz application that use NodeJS backend, a PostgreSQL database, Prisma ORM, and JWT authentication",
   "main": "index.js",
   "type": "module",
   "scripts": {
