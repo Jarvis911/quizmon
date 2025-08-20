@@ -22,22 +22,53 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   quizzes       Quiz[]
+  quizRatings   QuizRating[]
+  matchs        Match[]
+  matchResults  MatchResult[]
+}
+
+model QuizCategory {
+  id            Int     @id @default(autoincrement())
+  name          String
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  quizzes       Quiz[]
 }
 
 model Quiz {
   id            Int     @id @default(autoincrement())
   title         String
   description   String
+  image         String?
   isPublic      Boolean @default(false)
 
   creatorId     Int
   creator       User    @relation(fields: [creatorId], references: [id])
+  categoryId    Int
+  category      QuizCategory  @relation(fields: [categoryId], references: [id])
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   questions     Question[]
-  media         QuizMedia[]
+  quizRatings   QuizRating[]
+  matchs        Match[]
+}
+
+model QuizRating {
+  id            Int     @id @default(autoincrement())
+  rating        Int
+  text          String
+
+  userId        Int
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizId        Int
+  quiz          Quiz    @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([quizId])
 }
 
 enum MediaType {
@@ -45,7 +76,7 @@ enum MediaType {
   VIDEO
 }
 
-model QuizMedia {
+model QuestionMedia {
   id            Int         @id() @default(autoincrement())
   type          MediaType
   url           String
@@ -55,8 +86,8 @@ model QuizMedia {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
-  quizId    Int
-  quiz      Quiz    @relation(fields: [quizId], references: [id])
+  questionId    Int
+  question      Question?    @relation(fields: [questionId], references: [id])
 }
 
 enum QuestionType {
@@ -75,6 +106,8 @@ model Question {
   checkbox      QuestionCheckbox?
   reorder       QuestionReorder?
   range         QuestionRange?
+  typeAnswer    QuestionTypeAnswer?
+  location      QuestionLocation?
 
   quizId        Int
   quiz          Quiz    @relation(fields: [quizId], references: [id])
@@ -83,6 +116,7 @@ model Question {
   updatedAt     DateTime  @updatedAt
 
   options       QuestionOption[]
+  media         QuestionMedia[]
 }
 
 model QuestionButton {
@@ -123,3 +157,44 @@ model QuestionRange   {
   question      Question    @relation(fields: [id], references: [id])
 }
 
+model QuestionTypeAnswer {
+  id            Int         @id
+  correctAnswer String
+  question      Question    @relation(fields: [id], references: [id])
+}
+
+model QuestionLocation    {
+  id                Int         @id
+  correctLatitude   Float
+  correctLongitude  Float
+  question          Question    @relation(fields: [id], references: [id])
+}
+
+model Match {
+  id              Int         @id @default(autoincrement())
+  startTime       DateTime?
+  endTime         DateTime?
+
+  quizId          Int
+  quiz            Quiz        @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  hostId          Int
+  host            User        @relation(fields: [hostId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  matchResults    MatchResult[] 
+}
+
+model MatchResult {
+  id              Int         @id @default(autoincrement())
+  score           Int?
+
+  userId          Int
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matchId         Int
+  match         Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
