@@ -10,7 +10,7 @@ export const createQuiz = async (quizData) => {
         image,
         isPublic: !!isPublic,
         creatorId,
-        categoryId: parseInt(categoryId)
+        categoryId: Number(categoryId)
       },
       include: {
         creator: {
@@ -30,35 +30,35 @@ export const createQuiz = async (quizData) => {
 };
 
 
-// export const getQuizByUser = async (userId) => {
-//     try {
-//     const quizzes = await prisma.quiz.findMany({
-//       where: {
-//         creatorId: userId,
-//       },
-//     });
+export const getQuiz = async (userId) => {
+    try {
+    const quizzes = await prisma.quiz.findMany({
+      where: {
+        creatorId: userId,
+      },
+    });
 
-//     return { quizzes };
-//   } catch (err) {
-//     console.log(err.message);
-//     throw new err;
-//   }
-// };
+    return quizzes;
+  } catch (err) {
+    console.log(err.message);
+    throw err;
+  }
+};
 
-// export const getQuestionByQuiz = async (quizId) => {
-//     try {
-//     const questions = await prisma.question.findMany({
-//       where: {
-//         quizId: Number(quizId),
-//       },
-//     });
+export const getQuestionByQuiz = async (quizId) => {
+    try {
+    const questions = await prisma.question.findMany({
+      where: {
+        quizId: Number(quizId),
+      },
+    });
 
-//     return { questions };
-//   } catch (err) {
-//     console.log(err.message);
-//     throw new err;
-//   }
-// };
+    return questions;
+  } catch (err) {
+    console.log(err.message);
+    throw err;
+  }
+};
 
 
 // export const updateQuiz = async (title, description, isPublic, quizId, userId) => {

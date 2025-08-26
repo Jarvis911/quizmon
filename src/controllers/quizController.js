@@ -1,11 +1,11 @@
 import {
-  createQuiz as createQuizService
+  createQuiz as createQuizService,
+  getQuiz as getQuizService
 } from "../services/quizService.js";
 import cloudinary from "../utils/cloudinary.js";
 
 export const createQuiz = async (req, res) => {
   const { title, description, isPublic, categoryId } = req.body;
-  const userId = req.userId;
   const imageFile = req.file;
   let imageUrl = null;
 
@@ -39,6 +39,16 @@ export const createQuiz = async (req, res) => {
   }
 };
 
+export const getQuiz = async (req, res) => {
+  try {
+    const data = await getQuizService(req.userId);
+    return res.status(200).json(data);
+  } catch (err) {
+    return res.err(400).json({ message: err.message });
+  }
+};
+
+
 // export const updateMedia = async (req, res) => {
 //   const { type, url, startTime, duration } = req.body;
 //   const { id } = req.params;
@@ -51,15 +61,7 @@ export const createQuiz = async (req, res) => {
 //   }
 // };
 
-// export const queryQuizOfUser = async (req, res) => {
-//   const { id } = req.userId;
-//   try {
-//     const data = await getQuizByUser(id);
-//     return res.status(200).json(data);
-//   } catch (err) {
-//     return res.err(400).json({ message: err.message });
-//   }
-// };
+
 
 // export const queryQuestionOfQuiz = async (req, res) => {
 //   const { id } = req.params;

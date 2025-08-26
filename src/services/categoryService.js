@@ -14,3 +14,32 @@ export const createCategory = async (name) => {
     throw err;
   }
 };
+
+
+export const getCategory = async () => {
+  try {
+    const categories = await prisma.quizCategory.findMany();
+
+    return categories;
+  } catch (err) {
+    console.log(err.message);
+    throw err;
+  }
+}
+
+
+export const getQuizByCate = async(categoryId) => {
+  try {
+    const quizzes = await prisma.quiz.findMany({
+      where: {
+        categoryId: Number(categoryId),
+        isPublic: true
+      }
+    })
+
+    return quizzes;
+  } catch (err) {
+    console.log(err.message);
+    throw err;
+  }
+};

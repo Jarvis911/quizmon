@@ -5,7 +5,7 @@ import { createButtonQuestion } from "../controllers/questionController.js";
 
 const router = express.Router();
 
-router.post('/buttons', authMiddleware, upload.array('media', 5), createButtonQuestion);
+router.post('/buttons', authMiddleware, upload.array('files', 5), createButtonQuestion);
 
 
 export default router;
