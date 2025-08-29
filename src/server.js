@@ -6,6 +6,12 @@ import corsMiddleware from './middleware/corsMiddleware.js';
 import quizRoutes from './routes/quizRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import questionRoutes from './routes/questionRoutes.js';
+import swaggerUi from "swagger-ui-express";
+import swaggerFile from "./utils/swagger-output.json" with { type: "json" }; 
+
+
+// docker compose run app npx prisma migrate dev --name init
+// node swagger.js
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -18,6 +24,8 @@ const __dirname = dirname(__filename)
 app.use(express.json())
 app.use(corsMiddleware)
 app.use(express.static(path.join(__dirname, '../public')))
+app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerFile));
+
 
 app.use('/auth', authRoutes);
 app.use('/quiz', quizRoutes);

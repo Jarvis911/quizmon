@@ -1,6 +1,8 @@
 import {
   createQuiz as createQuizService,
-  getQuiz as getQuizService
+  getQuiz as getQuizService,
+  getQuestionByQuiz as getQuestionByQuizService,
+  getRetrieveQuiz as getRetrieveQuizService
 } from "../services/quizService.js";
 import cloudinary from "../utils/cloudinary.js";
 
@@ -48,31 +50,28 @@ export const getQuiz = async (req, res) => {
   }
 };
 
-
-// export const updateMedia = async (req, res) => {
-//   const { type, url, startTime, duration } = req.body;
-//   const { id } = req.params;
-
-//   try {
-//     const data = await addMedia(type, url, startTime, duration, id);
-//     return res.status(200).json(data);
-//   } catch (err) {
-//     return res.err(400).json({ message: err.message });
-//   }
-// };
+export const getRetrieveQuiz = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const data = await getRetrieveQuizService(id);
+    return res.status(200).json(data);
+  } catch (err) {
+    return res.err(400).json({ message: err.message });
+  }
+};
 
 
 
-// export const queryQuestionOfQuiz = async (req, res) => {
-//   const { id } = req.params;
+export const getQuestionByQuiz = async (req, res) => {
+  const { id } = req.params;
 
-//   try {
-//     const data = await getQuestionByQuiz(id);
-//     return res.status(200).json(data);
-//   } catch (err) {
-//     return res.err(400).json({ message: err.message });
-//   }
-// };
+  try {
+    const data = await getQuestionByQuizService(id);
+    return res.status(200).json(data);
+  } catch (err) {
+    return res.err(400).json({ message: err.message });
+  }
+};
 
 // export const updateAQuiz = async (req, res) => {
 //   const { title, description, isPublic } = req.body;

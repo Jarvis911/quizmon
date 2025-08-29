@@ -9,7 +9,7 @@ export const createQuiz = async (quizData) => {
         description,
         image,
         isPublic: !!isPublic,
-        creatorId,
+        creatorId: Number(creatorId),
         categoryId: Number(categoryId)
       },
       include: {
@@ -34,7 +34,7 @@ export const getQuiz = async (userId) => {
     try {
     const quizzes = await prisma.quiz.findMany({
       where: {
-        creatorId: userId,
+        creatorId: Number(userId),
       },
     });
 
@@ -45,12 +45,38 @@ export const getQuiz = async (userId) => {
   }
 };
 
+export const getRetrieveQuiz = async (quizId) => {
+    try {
+    const quiz = await prisma.quiz.findUnique({
+      where: {
+        id: Number(quizId),
+      },
+    });
+
+    return quiz;
+  } catch (err) {
+    console.log(err.message);
+    throw err;
+  }
+};
+
+
 export const getQuestionByQuiz = async (quizId) => {
     try {
     const questions = await prisma.question.findMany({
       where: {
         quizId: Number(quizId),
       },
+      include: {
+        button: true,
+        checkbox: true,
+        reorder: true,
+        range: true,
+        typeAnswer: true,
+        location: true,
+        media: true,
+        options: true
+      }
     });
 
     return questions;

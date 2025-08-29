@@ -20,6 +20,32 @@ import prisma from "../prismaClient.js";
 //   }
 // };
 
+export const getRetrieveQuestion = async (questionId) => {
+  try {
+    const question = await prisma.question.findMany({
+      where: {
+        id: Number(questionId),
+      },
+      include: {
+        button: true,
+        checkbox: true,
+        reorder: true,
+        range: true,
+        typeAnswer: true,
+        location: true,
+        media: true,
+        options: true,
+        quiz: {
+          select: { id: true, title: true },
+        },
+    }});
+
+    return question;
+  } catch (err) {
+    throw err;
+  }
+}
+
 export const createQuestion = async (questionData) => {
   try {
     const {
@@ -44,6 +70,7 @@ export const createQuestion = async (questionData) => {
         ...(type === "BUTTONS" && { button: { create: {} } }),
         ...(type === "CHECKBOXES" && { checkbox: { create: {} } }),
         ...(type === "REORDER" && { reorder: { create: {} } }),
+        // If it is range, create child Range with additional value
         ...(type === "RANGE" && {
           range: {
             create: {
@@ -53,11 +80,13 @@ export const createQuestion = async (questionData) => {
             },
           },
         }),
-        ...(type === "TYPE_ANSWER" && {
+        // If it is type answer, create child TypeAnswer with additional value
+        ...(type === "TYPEANSWER" && {
           typeAnswer: {
             create: { correctAnswer },
           },
         }),
+        // If it is location, create child Location with additional value
         ...(type === "LOCATION" && {
           location: {
             create: {
@@ -75,6 +104,7 @@ export const createQuestion = async (questionData) => {
             duration: m.duration,
           })),
         },
+        // Create options if options type
         options: options && {
           create: options.map((option) => ({
             text: option.text,
@@ -83,6 +113,7 @@ export const createQuestion = async (questionData) => {
           })),
         },
       },
+      // Return following child 
       include: {
         button: true,
         checkbox: true,

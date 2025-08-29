@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch --env-file=.env --experimental-strip-types --experimental-sqlite ./src/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "swagger": "node .src/utils/swagger.js"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +21,8 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "pg": "^8.16.3",
-    "prisma": "^6.13.0"
+    "prisma": "^6.13.0",
+    "swagger-autogen": "^2.23.7",
+    "swagger-ui-express": "^5.0.1"
   }
 }

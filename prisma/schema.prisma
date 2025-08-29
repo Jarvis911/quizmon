@@ -95,6 +95,8 @@ enum QuestionType {
   CHECKBOXES
   RANGE
   REORDER
+  TYPEANSWER
+  LOCATION 
 }
 
 model Question {
