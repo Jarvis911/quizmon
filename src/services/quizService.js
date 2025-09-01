@@ -51,6 +51,20 @@ export const getRetrieveQuiz = async (quizId) => {
       where: {
         id: Number(quizId),
       },
+      include: {
+        questions: {
+          include: {
+            button: true,
+            checkbox: true,
+            reorder: true,
+            range: true,
+            typeAnswer: true,
+            location: true,
+            media: true,
+            options: true,
+          },
+        },
+    }
     });
 
     return quiz;
@@ -86,41 +100,3 @@ export const getQuestionByQuiz = async (quizId) => {
   }
 };
 
-
-// export const updateQuiz = async (title, description, isPublic, quizId, userId) => {
-//     try {
-//     const quiz = await prisma.quiz.update({
-//       where: {
-//         id: Number(quizId),
-//         creatorId: userId,
-//       },
-//       data: {
-//         title: title,
-//         description: description,
-//         isPublic: !!isPublic,
-//       },
-//     });
-
-//     return { quiz };
-//   } catch (err) {
-//     console.log(err.message);
-//     throw new err;
-//   }
-// };
-
-
-// export const deleteQuiz = async (quizId, userId) => {
-//     try {
-//     await prisma.quiz.delete({
-//       where: {
-//         id: Number(quizId),
-//         creatorId: userId,
-//       },
-//     });
-
-//     return {message: "Deleted successful!"};
-//   } catch (err) {
-//     console.log(err.message);
-//     throw new err;
-//   }
-// };

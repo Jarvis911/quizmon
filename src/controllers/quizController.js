@@ -46,7 +46,7 @@ export const getQuiz = async (req, res) => {
     const data = await getQuizService(req.userId);
     return res.status(200).json(data);
   } catch (err) {
-    return res.err(400).json({ message: err.message });
+    return res.status(400).json({ message: err.message });
   }
 };
 
@@ -56,7 +56,7 @@ export const getRetrieveQuiz = async (req, res) => {
     const data = await getRetrieveQuizService(id);
     return res.status(200).json(data);
   } catch (err) {
-    return res.err(400).json({ message: err.message });
+    return res.status(400).json({ message: err.message });
   }
 };
 

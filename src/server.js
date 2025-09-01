@@ -13,8 +13,8 @@ import swaggerFile from "./utils/swagger-output.json" with { type: "json" };
 // docker compose run app npx prisma migrate dev --name init
 // node swagger.js
 
-const app = express()
-const PORT = process.env.PORT || 5000
+const app = express()   
+const PORT = process.env.PORT || 5000   
 
 // Go to src
 const __filename = fileURLToPath(import.meta.url)

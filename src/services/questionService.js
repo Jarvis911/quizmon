@@ -135,3 +135,94 @@ export const createQuestion = async (questionData) => {
     throw err;
   }
 };
+
+export const updateQuestion = async (id, questionData) => {
+  try {
+    const {
+      text,
+      type,
+      media = [],
+      options = [],
+      minValue,
+      maxValue,
+      correctValue,
+      correctAnswer,
+      correctLatitude,
+      correctLongitude,
+    } = questionData;
+
+    const updated = await prisma.question.update({
+      where: { id: Number(id) },
+      data: {
+        text,
+        type,
+
+        // Range
+        ...(type === "RANGE" && {
+          range: {
+            upsert: {
+              update: { minValue, maxValue, correctValue },
+              create: { minValue, maxValue, correctValue },
+            },
+          },
+        }),
+
+        // Type Answer
+        ...(type === "TYPEANSWER" && {
+          typeAnswer: {
+            upsert: {
+              update: { correctAnswer },
+              create: { correctAnswer },
+            },
+          },
+        }),
+
+        // Location
+        ...(type === "LOCATION" && {
+          location: {
+            upsert: {
+              update: { correctLatitude, correctLongitude },
+              create: { correctLatitude, correctLongitude },
+            },
+          },
+        }),
+
+        // Media (xóa cũ -> tạo mới)
+        media: {
+          deleteMany: {}, 
+          create: media.map((m) => ({
+            type: m.type,
+            url: m.url,
+            startTime: m.startTime,
+            duration: m.duration,
+          })),
+        },
+
+        // Options (xóa cũ -> tạo mới)
+        options: {
+          deleteMany: {},
+          create: options.map((o) => ({
+            text: o.text,
+            isCorrect: o.isCorrect || false,
+            order: o.order,
+          })),
+        },
+      },
+      include: {
+        button: true,
+        checkbox: true,
+        reorder: true,
+        range: true,
+        typeAnswer: true,
+        location: true,
+        media: true,
+        options: true,
+      },
+    });
+
+    return updated;
+  } catch (err) {
+    console.error(err.message);
+    throw err;
+  }
+};
