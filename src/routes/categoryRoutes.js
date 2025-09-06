@@ -5,6 +5,6 @@ const router = express.Router();
 
 router.post('/', createCategory);
 router.get('/', getCategory);
-router.get('/quiz', getQuizByCate);
+router.get('/:id/quiz', getQuizByCate);
 
 export default router;

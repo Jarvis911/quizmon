@@ -16,7 +16,7 @@ export const registerUser = async (username, password) => {
       expiresIn: "24h",
     });
 
-    return {token};
+    return {user, token};
   } catch (err) {
     console.log(err.message);
     throw err;
@@ -43,7 +43,8 @@ export const loginUser = async (username, password) => {
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
       expiresIn: "24h",
     });
-    return {token};
+
+    return {user, token};
   } catch (err) {
     console.log(err.message);
     throw err;

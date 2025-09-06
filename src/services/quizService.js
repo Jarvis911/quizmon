@@ -64,6 +64,9 @@ export const getRetrieveQuiz = async (quizId) => {
             options: true,
           },
         },
+        category: {
+          select: {id: true, name:true}
+        }
     }
     });
 

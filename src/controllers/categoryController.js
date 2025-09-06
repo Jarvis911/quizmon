@@ -28,10 +28,10 @@ export const getCategory = async (req, res) => {
 
 export const getQuizByCate = async (req, res) => {
   try {
-    const { categoryId } = req.body;
-    const data = await getQuizByCateService(categoryId);
+    const { id } = req.params;
+    const data = await getQuizByCateService(id);
     return res.status(200).json(data);
   } catch (err) {
-    return res.err(400).json({ message: err.message });
+    return res.status(400).json({ message: err.message });
   }
 };
