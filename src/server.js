@@ -53,7 +53,7 @@ server.listen(PORT, () => {
 
 // Constants
 const MAX_PLAYER_PER_MATCH = 2;
-const QUESTION_TIME_LIMIT = 15;
+const QUESTION_TIME_LIMIT = 30;
 const MAX_ACTIVE_MATCHES = 1;
 
 // Temp
@@ -157,45 +157,96 @@ io.on('connection', (socket) => {
 
         console.log(`Match ${matchId} started by host ${socket.userId}`);
 
+        io.to(matchId).emit('gameStarted');
+
         sendNextQuestion(matchId);
     });
 
 
-    socket.on('submitAnswer', ({ matchId, userId, questionId, answer}) => {
+    socket.on('submitAnswer', ({ matchId, userId, questionId, answer }) => {
         const matchState = matches.get(matchId);
-        if (!matchState) {
-            console.log("submitAnswer: matchState not found", matchId);
-            return;
+        if (!matchState || matchState.state !== 'started') {
+            return socket.emit('error', 'Invalid match state');
         }
-        const q = matchState.questions.find(q => q.id === questionId);
-        if (!q) return;
-        let isCorrect = false;
-        switch (q.type) {
-            case 'BUTTONS':  // Pass to checkboxes because have the same algorithm
-                isCorrect = q.options[answer]?.isCorrect;
+
+        // Validate user is in match
+        const player = matchState.players.find(p => p.userId === userId);
+        if (!player) {
+            return socket.emit('error', 'Not in match');
+        }
+
+        const currentQuestion = matchState.questions[matchState.currentQuestionIndex];
+        if (!currentQuestion || currentQuestion.id !== questionId) {
+            return socket.emit('error', 'Invalid question');
+        }
+
+        // Check if already submitted
+        if (player.submitted.has(questionId)) {
+            return socket.emit('error', 'Already submitted for this question');
+        }
+
+        // Check if time remaining > 0
+        if (matchState.remainingTime <= 0) {
+            return socket.emit('error', 'Time up for this question');
+        }
+
+        // Validate answer payload based on type (anti-cheat)
+        let isValidAnswer = false;
+        switch (currentQuestion.type) {
+            case 'BUTTONS':
+                isValidAnswer = Number.isInteger(answer) && answer >= 0 && answer < currentQuestion.options.length;
                 break;
-            case 'CHECKBOXES': // answer is a array of true false [true, false, false, true]
-                isCorrect = answer.every((a, i) => q.options[i].isCorrect === a);
+            case 'CHECKBOXES':
+                isValidAnswer = Array.isArray(answer) && answer.length === currentQuestion.options.length && answer.every(a => typeof a === 'boolean');
                 break;
             case 'RANGE':
-                isCorrect = Math.abs(q.range.correctValue - answer) <= 5; // Base on our algorithm
+                isValidAnswer = typeof answer === 'number' && answer >= currentQuestion.range.minValue && answer <= currentQuestion.range.maxValue;
                 break;
             case 'REORDER':
-                isCorrect = answer.every((a, i) => a === q.options[i]?.order);
+                isValidAnswer = Array.isArray(answer) && answer.length === currentQuestion.options.length && new Set(answer).size === answer.length;
                 break;
             case 'TYPEANSWER':
-                isCorrect = q.typeAnswer.correctAnswer.toLowerCase() === answer.toLowerCase();
-            case 'LOCATION':
-                const correctAnswer = {lat: Number(q.location.correctLatitude), lon: Number(q.location.correctLongitude)};
-                const ans = {lat: Number(answer.lat), lon: Number(answer.lon)};
-                const distance = haversine(correctAnswer, ans);
-                isCorrect = distance <= 10000;
+                isValidAnswer = typeof answer === 'string' && answer.trim().length > 0;
                 break;
+            case 'LOCATION':
+                isValidAnswer = typeof answer === 'object' && typeof answer.lat === 'number' && typeof answer.lon === 'number';
+                break;
+            default:
+                return socket.emit('error', 'Unsupported question type');
         }
-        const player = matchState.players.find(p => p.userId === userId)
-        if (isCorrect) player.score += points; // need to rewrite the algorithm 
-        io.to(matchId).emit('answerResult', { userId, isCorrect, questionId });
-        io.to(matchId).emit('updatedScores', matchState.players); // players is a object contain scores
+
+        if (!isValidAnswer) {
+            return socket.emit('error', 'Invalid answer format');
+        }
+
+        // Store answer (we'll score later at timeUp to hide correct answers)
+        if (!matchState.answers.has(questionId)) {
+            matchState.answers.set(questionId, new Map());
+        }
+
+        const remainingTime = matchState.remainingTime;
+        matchState.answers.get(questionId).set(userId, {
+            answer: answer,
+            submitRemainingTime: typeof remainingTime === "number" ? remainingTime : 0
+        });
+
+        player.submitted.add(questionId);
+
+        // Emit confirmation to user
+        socket.emit('answerSubmitted', { questionId });
+
+        // Check if all players submitted, if yes, early timeUp
+        if (matchState.players.every(p => p.submitted.has(questionId))) {
+            processTimeUp(matchId);
+        }
+    });
+
+    socket.on("requestCurrentQuestion", ({ matchId }) => {
+        const matchState = matches.get(matchId);
+        if (!matchState) return;
+        const question = matchState.questions[matchState.currentQuestionIndex];
+        if (!question) return;
+        socket.emit("nextQuestion", { question, timer: matchState.remainingTime });
     });
 
     socket.on('endMatch', ({ matchId }) => endMatch(matchId));
@@ -229,21 +280,85 @@ io.on('connection', (socket) => {
         io.to(matchId).emit('timeUpdate', matchState.remainingTime);
 
         matchState.timeInterval = setInterval(() => {
-            matchState.remainingTime--;
-            io.to(matchId).emit('timeUpdate', matchState.remainingTime);
+            matchState.remainingTime = Math.max(0, matchState.remainingTime - 0.1);
+            io.to(matchId).emit('timeUpdate', Number(matchState.remainingTime.toFixed(1)));
 
             if (matchState.remainingTime <= 0) {
                 clearInterval(matchState.timeInterval);
                 matchState.timeInterval = null;
                 processTimeUp(matchId);
             }
-        }, 1000);
+        }, 100);
     }
 
-    // const processTimeUp = (matchId) => {
-    //     const matchState = matches.get(matchId);
-    //     if ()
-    // }
+    const processTimeUp = (matchId) => {
+        const matchState = matches.get(matchId);
+        if (!matchState) return;
+
+        if (matchState.timeInterval) {
+            clearInterval(matchState.timeInterval);
+            matchState.timeInterval = null;
+        }
+
+        const q = matchState.questions[matchState.currentQuestionIndex];
+        if (!q) return;
+        const questionId = q.id;
+        const answersMap = matchState.answers.get(questionId) || new Map();
+
+        // 1) Chấm điểm cho tất cả
+        for (const player of matchState.players) {
+            const entry = answersMap.get(player.userId);
+            const ans = entry?.answer;
+            let submitRemainingTime = entry ? entry.submitRemainingTime : 0;
+            let isCorrect = false;
+
+            if (entry) {
+            switch (q.type) {
+                case 'BUTTONS':
+                isCorrect = !!q.options[ans]?.isCorrect;
+                break;
+                case 'CHECKBOXES':
+                isCorrect = ans.every((a, i) => q.options[i].isCorrect === a);
+                break;
+                case 'RANGE':
+                isCorrect = Math.abs(q.range.correctValue - ans) <= 5;
+                break;
+                case 'REORDER':
+                isCorrect = ans.every((a, i) => a === q.options[i]?.order);
+                break;
+                case 'TYPEANSWER':
+                isCorrect = q.typeAnswer.correctAnswer.toLowerCase() === ans.toLowerCase();
+                break;
+                case 'LOCATION': {
+                const correct = { latitude: +q.location.correctLatitude, longitude: +q.location.correctLongitude };
+                const userAns = { latitude: +ans.lat, longitude: +ans.lon };
+                const distance = haversine(correct, userAns);
+                isCorrect = distance <= 10000;
+                break;
+                }
+            }
+            }
+
+            if (isCorrect) {
+                const points = +(1000 * (submitRemainingTime / QUESTION_TIME_LIMIT)).toFixed(1);
+                player.score += points;
+            }
+
+            io.to(matchId).emit("answerResult", { userId: player.userId, isCorrect, questionId });
+        }
+
+        matchState.players.forEach(p => p.submitted.delete(questionId));
+        io.to(matchId).emit("updatedScores", matchState.players.map(p => ({
+            userId: p.userId,
+            username: p.username,
+            score: p.score
+        })));
+
+        setTimeout(() => {
+            matchState.currentQuestionIndex++;
+            sendNextQuestion(matchId);
+        }, 3000);
+    };
     
     const sendNextQuestion = (matchId) =>  {
         const matchState = matches.get(matchId);
@@ -266,7 +381,8 @@ io.on('connection', (socket) => {
         if (!matchState) return;
 
         if (matchState.timeInterval) {
-            clearInterval(matchState.timer);
+            clearInterval(matchState.timeInterval);
+            matchState.timeInterval = null;
         }
 
         matchState.state = 'ended';
