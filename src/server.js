@@ -51,53 +51,113 @@ server.listen(PORT, () => {
     console.log(`Socket + server has running on ${PORT}`);
 })
 
+// Constants
+const MAX_PLAYER_PER_MATCH = 2;
+const QUESTION_TIME_LIMIT = 15;
+const MAX_ACTIVE_MATCHES = 1;
+
 // Temp
 const matches = new Map();
+const userToMatch = new Map();
 
 io.on('connection', (socket) => {
-        console.log("Socket connected:", socket.id);
-    // Run when client emit event "joinMatch"
+    console.log("Socket connected:", socket.id);
+
     socket.on('joinMatch', async ({ matchId, userId, username }) => {
+        // Check if user is already in a match!
+        if (userToMatch.has(userId)) {
+            return socket.emit('error', 'You are already in another match');
+        }
+
+        if (!matches.has(matchId)) {
+            if (matches.size >= MAX_ACTIVE_MATCHES) {
+                return socket.emit('error', 'Server at maximum active matches!');
+            }
+
+            // Return the quiz and all the questions in quiz data
+            const match = await prisma.match.findUnique({
+                where: {id: Number(matchId)}, 
+                include: {
+                    quiz: { 
+                        include: {
+                            questions: {
+                                include: { 
+                                    options: true, range: true, typeAnswer: true, location: true, media: true 
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            if (!match) 
+                return socket.emit('error', 'Match not found');
+
+            // Initialize matches
+            matches.set(matchId, {
+                state: 'waiting',
+                hostId: match.hostId, 
+                players: [],
+                currentQuestionIndex: 0, 
+                questions: match.quiz.questions, 
+                remainingTime: 0,
+                timeInterval: null,
+                startTime: null,
+                endTime: null,
+                answers: new Map() 
+            });
+        }
+
+        const matchState = matches.get(matchId);
+
+        if (matchState.state !== 'waiting') {
+            return socket.emit('error', 'Match has already started or ended');
+        }
+
+        if (matchState.players.length >= MAX_PLAYER_PER_MATCH) {
+            return socket.emit('error', 'Match is full');
+        }
+
+
+        matchState.players.push({userId, username, score: 0, submitted: new Set() });
+        userToMatch.set(userId, matchId);
+        io.to(matchId).emit('playerJoined', matchState.players);
+
         socket.join(matchId); // Join this socket in matchId room
         socket.matchId = matchId;
         socket.userId = userId;
         console.log(`Player ${userId} join match ${matchId}!`);
-
-        if (!matches.has(matchId)) {
-            const match = await prisma.match.findUnique({where: {id: Number(matchId)}, include: {quiz: { include: {questions: {include: { options: true, range: true, typeAnswer: true, location: true, media: true }}}}}});
-            if (!match) return socket.emit('error', 'Match not found');
-            // Initialize matches
-            matches.set(matchId, {players: [], currentQuestionIndex: 0, questions: match.quiz.questions, timer: null });
-        }
-
-        const matchState = matches.get(matchId);
-        matchState.players.push({userId, username, score: 0});
         io.to(matchId).emit('playerJoined', matchState.players);
     });
 
     socket.on('startMatch', async ({ matchId }) => {
         const matchState = matches.get(matchId);
         if (!matchState) 
-            console.log("startMatch: matchState is null");
-        else 
-            console.log(`Start match ${matchId} with players ${JSON.stringify(matchState.players)} and questions count of ${matchState.questions.length}`);
+            return socket.emit('error', 'Match not found');
 
-        const handleTimeUp = () => {
-            matchState.currentQuestionIndex++;
-            sendNextQuestion();            
+        if (socket.userId !== matchState.hostId) {
+            return socket.emit('error', 'Only host can start the match');
         }
 
-        socket.on("timeUp", handleTimeUp);
+        if (matchState.state !== 'waiting') {
+            return socket.emit('error', 'Match already started');
+        }
 
-        const sendNextQuestion = () =>  {
-            const q = matchState.questions[matchState.currentQuestionIndex];
-            // If out of question
-            if (!q) return endMatch(matchId);
-            io.to(matchId).emit("nextQuestion", {question: q});
-        };
+        matchState.state = 'started';
+        matchState.startTime = new Date();
 
-        sendNextQuestion();
-        await prisma.match.update({where: {id: Number(matchId)}, data: { startTime: new Date() }});
+        await prisma.match.update({
+            where: {
+                id: Number(matchId)
+            }, 
+            data: { 
+                startTime: new Date() 
+            }
+        });
+
+        console.log(`Match ${matchId} started by host ${socket.userId}`);
+
+        sendNextQuestion(matchId);
     });
 
 
@@ -140,43 +200,114 @@ io.on('connection', (socket) => {
 
     socket.on('endMatch', ({ matchId }) => endMatch(matchId));
 
-    const endMatch = (matchId) => {
-        const matchState = matches.get(matchId);
-        if (!matchState) return;
-        clearInterval(matchState.timer);
-        const leaderboard = [...matchState.players].sort((a, b) => b.score - a.score);
-        io.to(matchId).emit('gameOver', { leaderboard }); // Destructure this to get point 
-
-        prisma.$transaction(async (tx) => {
-            await tx.match.update({where: {id: Number(matchId)}, data: { endTime: new Date() }});
-            for (const p of matchState.players) {
-                await tx.matchResult.create({data: {matchId: Number(matchId), userId: p.userId, score: p.score }});
-            }
-        });
-        matches.delete(matchId);
-    }
 
     socket.on('disconnect', () => {
         console.log('Socket disconnected:', socket.id);
 
         const { matchId, userId } = socket;
         
-        if (matchId && matches.has(matchId)) {
+        if (matchId && matches.has(matchId) && userId) {
             const matchState = matches.get(matchId);
             matchState.players = matchState.players.filter(player => player.userId != userId);
+            userToMatch.delete(userId);
             
             console.log(`Player ${userId} left match ${matchId}. Remaining players: ${matchState.players.length}`);
             io.to(matchId).emit('playerLeft', matchState.players);
 
             if (matchState.players.length === 0) {
-                console.log(`No players left in match ${matchId}, cleaning up`);
-                if (matchState.timer) {
-                    clearInterval(matchState.timer);
-                }
-                matches.delete(matchId);
+                endMatch(matchId);
             }
         }
     })
+
+    const startQuestionTimer = (matchId) => {
+        const matchState = matches.get(matchId);    
+        if (!matchState) return;
+
+        matchState.remainingTime = QUESTION_TIME_LIMIT;
+
+        io.to(matchId).emit('timeUpdate', matchState.remainingTime);
+
+        matchState.timeInterval = setInterval(() => {
+            matchState.remainingTime--;
+            io.to(matchId).emit('timeUpdate', matchState.remainingTime);
+
+            if (matchState.remainingTime <= 0) {
+                clearInterval(matchState.timeInterval);
+                matchState.timeInterval = null;
+                processTimeUp(matchId);
+            }
+        }, 1000);
+    }
+
+    // const processTimeUp = (matchId) => {
+    //     const matchState = matches.get(matchId);
+    //     if ()
+    // }
+    
+    const sendNextQuestion = (matchId) =>  {
+        const matchState = matches.get(matchId);
+        if (!matchState) return;
+
+        if (matchState.currentQuestionIndex >= matchState.questions.length)
+            return endMatch(matchId);
+
+        const question = matchState.questions[matchState.currentQuestionIndex];
+        io.to(matchId).emit("nextQuestion", {question, timer: QUESTION_TIME_LIMIT});
+
+        startQuestionTimer(matchId);
+    };
+
+
+    
+    const endMatch = (matchId) => {
+        const matchState = matches.get(matchId);
+
+        if (!matchState) return;
+
+        if (matchState.timeInterval) {
+            clearInterval(matchState.timer);
+        }
+
+        matchState.state = 'ended';
+        matchState.endTime = new Date();
+
+        // Update time end of the match
+        prisma.match.update({ 
+            where: { 
+                id: Number(matchId) 
+            }, 
+            data: { 
+                endTime: matchState.endTime 
+            } 
+        });
+
+        // Create result of each players to save!
+        prisma.$transaction(async (tx) => {
+            for (const p of matchState.players) {
+                await tx.matchResult.create({
+                    data: {
+                        matchId: Number(matchId), 
+                        userId: p.userId, 
+                        score: p.score 
+                    }
+                });
+            }
+        });
+
+        // Should I put a method for tiebreak when 2 players have the same points?
+        const leaderboard = [...matchState.players]
+            .sort((a, b) => b.score - a.score || a.username.localeCompare(b.username))
+            .map(player => ({userId: player.userId, username: player.username, score: player.score}));
+       
+        io.to(matchId).emit('gameOver', { leaderboard }); // Destructure this to get point 
+
+        // Update match state and clean up
+        matchState.players.forEach(player => userToMatch.delete(player.userId));
+        matches.delete(matchId);
+
+        console.log(`Match ${matchId} ended and cleaned up`);
+    }
 
 });
 
