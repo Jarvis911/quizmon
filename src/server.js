@@ -310,6 +310,7 @@ io.on('connection', (socket) => {
             const entry = answersMap.get(player.userId);
             const ans = entry?.answer;
             let submitRemainingTime = entry ? entry.submitRemainingTime : 0;
+            let correctLatLon = {};
             let isCorrect = false;
 
             if (entry) {
@@ -330,9 +331,9 @@ io.on('connection', (socket) => {
                 isCorrect = q.typeAnswer.correctAnswer.toLowerCase() === ans.toLowerCase();
                 break;
                 case 'LOCATION': {
-                const correct = { latitude: +q.location.correctLatitude, longitude: +q.location.correctLongitude };
+                correctLatLon = { latitude: +q.location.correctLatitude, longitude: +q.location.correctLongitude };
                 const userAns = { latitude: +ans.lat, longitude: +ans.lon };
-                const distance = haversine(correct, userAns);
+                const distance = haversine(correctLatLon, userAns);
                 isCorrect = distance <= 10000;
                 break;
                 }
@@ -343,8 +344,11 @@ io.on('connection', (socket) => {
                 const points = +(1000 * (submitRemainingTime / QUESTION_TIME_LIMIT)).toFixed(1);
                 player.score += points;
             }
-
-            io.to(matchId).emit("answerResult", { userId: player.userId, isCorrect, questionId });
+            if (q.type === 'LOCATION') {
+                io.to(matchId).emit("answerResult", { userId: player.userId, isCorrect, questionId, correctLatLon });
+            } else {
+                io.to(matchId).emit("answerResult", { userId: player.userId, isCorrect, questionId });
+            }
         }
 
         matchState.players.forEach(p => p.submitted.delete(questionId));
@@ -357,7 +361,7 @@ io.on('connection', (socket) => {
         setTimeout(() => {
             matchState.currentQuestionIndex++;
             sendNextQuestion(matchId);
-        }, 3000);
+        }, 6000);
     };
     
     const sendNextQuestion = (matchId) =>  {
