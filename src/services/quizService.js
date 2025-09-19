@@ -22,7 +22,7 @@ export const createQuiz = async (quizData) => {
       }
     });
 
-    return { quiz };
+    return quiz ;
   } catch (err) {
     console.error(err.message);
     throw err;
@@ -36,6 +36,14 @@ export const getQuiz = async (userId) => {
       where: {
         creatorId: Number(userId),
       },
+      include: {
+        creator: {
+            select: {id: true, username: true}
+        },
+        category: {
+            select: {id: true, name:true}
+        }
+      }
     });
 
     return quizzes;
@@ -66,8 +74,11 @@ export const getRetrieveQuiz = async (quizId) => {
         },
         category: {
           select: {id: true, name:true}
+        },
+        creator: {
+            select: {id: true, username: true}
         }
-    }
+      }
     });
 
     return quiz;

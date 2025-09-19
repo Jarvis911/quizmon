@@ -60,7 +60,7 @@ model Quiz {
 model QuizRating {
   id            Int     @id @default(autoincrement())
   rating        Int
-  text          String
+  text          String?
 
   userId        Int
   user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)

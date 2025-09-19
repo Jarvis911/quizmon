@@ -34,6 +34,11 @@ export const getQuizByCate = async(categoryId) => {
       where: {
         categoryId: Number(categoryId),
         isPublic: true
+      },
+      include: {
+        creator: {
+            select: {id: true, username: true}
+        }
       }
     })
 

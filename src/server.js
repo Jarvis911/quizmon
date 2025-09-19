@@ -9,6 +9,7 @@ import quizRoutes from './routes/quizRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import questionRoutes from './routes/questionRoutes.js';
 import matchRoutes from './routes/matchRoutes.js';
+import ratingRoutes from './routes/ratingRoutes.js';
 import swaggerUi from "swagger-ui-express";
 import swaggerFile from "./utils/swagger-output.json" with { type: "json" }; 
 import { Server } from "socket.io";
@@ -38,6 +39,7 @@ app.use('/quiz', quizRoutes);
 app.use('/category', categoryRoutes);
 app.use('/question', questionRoutes)
 app.use('/match', matchRoutes);
+app.use('/rating', ratingRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -219,7 +221,6 @@ io.on('connection', (socket) => {
             return socket.emit('error', 'Invalid answer format');
         }
 
-        // Store answer (we'll score later at timeUp to hide correct answers)
         if (!matchState.answers.has(questionId)) {
             matchState.answers.set(questionId, new Map());
         }
@@ -305,7 +306,6 @@ io.on('connection', (socket) => {
         const questionId = q.id;
         const answersMap = matchState.answers.get(questionId) || new Map();
 
-        // 1) Chấm điểm cho tất cả
         for (const player of matchState.players) {
             const entry = answersMap.get(player.userId);
             const ans = entry?.answer;
@@ -314,36 +314,37 @@ io.on('connection', (socket) => {
             let isCorrect = false;
 
             if (entry) {
-            switch (q.type) {
-                case 'BUTTONS':
-                isCorrect = !!q.options[ans]?.isCorrect;
-                break;
-                case 'CHECKBOXES':
-                isCorrect = ans.every((a, i) => q.options[i].isCorrect === a);
-                break;
-                case 'RANGE':
-                isCorrect = Math.abs(q.range.correctValue - ans) <= 5;
-                break;
-                case 'REORDER':
-                isCorrect = ans.every((a, i) => a === q.options[i]?.order);
-                break;
-                case 'TYPEANSWER':
-                isCorrect = q.typeAnswer.correctAnswer.toLowerCase() === ans.toLowerCase();
-                break;
-                case 'LOCATION': {
-                correctLatLon = { latitude: +q.location.correctLatitude, longitude: +q.location.correctLongitude };
-                const userAns = { latitude: +ans.lat, longitude: +ans.lon };
-                const distance = haversine(correctLatLon, userAns);
-                isCorrect = distance <= 10000;
-                break;
+                switch (q.type) {
+                    case 'BUTTONS':
+                        isCorrect = !!q.options[ans]?.isCorrect;
+                        break;
+                    case 'CHECKBOXES':
+                        isCorrect = ans.every((a, i) => q.options[i].isCorrect === a);
+                        break;
+                    case 'RANGE':
+                        isCorrect = Math.abs(q.range.correctValue - ans) <= 5;
+                        break;
+                    case 'REORDER':
+                        isCorrect = ans.every((a, i) => a === q.options[i]?.order);
+                        break;
+                    case 'TYPEANSWER':
+                        isCorrect = q.typeAnswer.correctAnswer.toLowerCase() === ans.toLowerCase();
+                        break;
+                    case 'LOCATION': {
+                        correctLatLon = { latitude: +q.location.correctLatitude, longitude: +q.location.correctLongitude };
+                        const userAns = { latitude: +ans.lat, longitude: +ans.lon };
+                        const distance = haversine(correctLatLon, userAns);
+                        isCorrect = distance <= 30000;
+                        break;
+                        }
                 }
-            }
             }
 
             if (isCorrect) {
-                const points = +(1000 * (submitRemainingTime / QUESTION_TIME_LIMIT)).toFixed(1);
+                let points = +(1000 * (submitRemainingTime / QUESTION_TIME_LIMIT)).toFixed(1);
                 player.score += points;
             }
+
             if (q.type === 'LOCATION') {
                 io.to(matchId).emit("answerResult", { userId: player.userId, isCorrect, questionId, correctLatLon });
             } else {
@@ -351,17 +352,18 @@ io.on('connection', (socket) => {
             }
         }
 
-        matchState.players.forEach(p => p.submitted.delete(questionId));
+        matchState.players.forEach(p => p.submitted = new Set());
+        
         io.to(matchId).emit("updatedScores", matchState.players.map(p => ({
             userId: p.userId,
             username: p.username,
             score: p.score
         })));
-
+        
         setTimeout(() => {
             matchState.currentQuestionIndex++;
             sendNextQuestion(matchId);
-        }, 6000);
+        }, 5000);
     };
     
     const sendNextQuestion = (matchId) =>  {
