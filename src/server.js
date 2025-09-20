@@ -10,6 +10,7 @@ import categoryRoutes from './routes/categoryRoutes.js';
 import questionRoutes from './routes/questionRoutes.js';
 import matchRoutes from './routes/matchRoutes.js';
 import ratingRoutes from './routes/ratingRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 import swaggerUi from "swagger-ui-express";
 import swaggerFile from "./utils/swagger-output.json" with { type: "json" }; 
 import { Server } from "socket.io";
@@ -40,6 +41,7 @@ app.use('/category', categoryRoutes);
 app.use('/question', questionRoutes)
 app.use('/match', matchRoutes);
 app.use('/rating', ratingRoutes);
+app.use('/user', userRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, {

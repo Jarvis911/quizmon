@@ -13,7 +13,6 @@ router.get('/:id', getRetrieveQuiz);
 router.get('/:id/rated', authMiddleware, checkUserRateQuiz);
 router.get('/:id/rating', getQuizRating);
 
-// router.post('/:id/media', authMiddleware, upload.single("file"), updateMedia);
 // router.put('/:id', authMiddleware, updateAQuiz);
 // router.delete('/:id', authMiddleware, deleteAQuiz);
 
